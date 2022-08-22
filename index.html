@@ -104,6 +104,15 @@
 
             socket.on("users", (users) => {
                 document.querySelector(".users").textContent = users;
+
+                if (users < 2) {
+                    document.querySelector(".info").textContent =
+                        "Waiting for your opponent";
+                    disableBtns(true);
+                } else {
+                    document.querySelector(".info").textContent = "";
+                    disableBtns(false);
+                }
             });
 
             socket.on("disconnect", () => {
