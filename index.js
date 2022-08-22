@@ -9,6 +9,7 @@ app.get("/", (req, res) => {
 
 let moves = [];
 let users = [];
+let visitors = [];
 let turn = 0;
 
 const makeATurn = () => {
@@ -54,23 +55,35 @@ io.on("connection", (client) => {
             cb(true);
         } else {
             cb(false);
+            visitors.push(client.id);
         }
-        if (users[turn]) io.emit("turn", users[turn].client);
         io.emit("users", users.length);
+        io.emit("visitors", visitors.length);
+        if (users[turn]) io.emit("turn", users[turn].client);
     });
 
     client.on("move", (move) => {
+        if (users.length < 2) return;
         moves.push(move);
-
         io.emit("moves", moves);
         makeATurn();
         checkMoves(moves);
         io.emit("turn", users[turn].client);
     });
 
+    client.on("retry", () => {
+        moves = [];
+        io.emit("moves", moves);
+        makeATurn();
+        if (users[turn]) io.emit("turn", users[turn].client);
+    });
+
     client.on("disconnect", () => {
         users = users.filter(({ client: id }) => id !== client.id);
+        visitors = visitors.filter((id) => id !== client.id);
         moves = [];
+        io.emit("users", users.length);
+        io.emit("visitors", visitors.length);
     });
 });
 

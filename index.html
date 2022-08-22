@@ -38,8 +38,10 @@
             }
             .room {
                 display: none;
+                padding: 50px;
             }
-            .play {
+            .play,
+            .retry {
                 background-color: lightcyan;
                 font-family: Calibri, sans-serif;
                 margin: 50px;
@@ -48,6 +50,9 @@
             .info {
                 color: red;
             }
+            .retry {
+                display: none;
+            }
         </style>
     </head>
     <body>
@@ -55,7 +60,10 @@
             <button class="play">PLAY</button>
             <div class="room">
                 <h1>User: <span class="userId"></span></h1>
-                <div>Count of players: <span class="users"></span></div>
+                <div>
+                    Count of players: <span class="users"></span> || Visitors:
+                    <span class="visitors"></span>
+                </div>
                 <h2 class="turn"></h2>
                 <h2 class="info"></h2>
 
@@ -76,12 +84,14 @@
                         <button class="btn" data-id="8">.</button>
                     </div>
                 </div>
+                <button class="retry">RETRY</button>
             </div>
         </div>
         <script>
             const socket = io();
 
             let end = false;
+            let visitor = false;
 
             const disableBtns = (flag) => {
                 document.querySelectorAll(".btn")?.forEach((node) => {
@@ -89,8 +99,28 @@
                 });
             };
 
+            const clearBtns = () => {
+                [...document.querySelectorAll(".btn")].forEach((i) => {
+                    i.textContent = ".";
+                    i.classList.remove("active");
+                    i.style.backgroundColor = "transparent";
+                });
+                end = false;
+                if (!visitor) document.querySelector(".info").textContent = "";
+            };
+
             socket.on("moves", (moves) => {
-                console.log(moves);
+                if (moves.length === 9) {
+                    document.querySelector(".retry").style.display = "block";
+                    end = true;
+                } else {
+                    document.querySelector(".retry").style.display = "none";
+                }
+
+                if (moves.length === 0) {
+                    clearBtns();
+                }
+
                 moves.forEach(({ user: { id }, move }) => {
                     const btn = document.querySelector(
                         `.btn[data-id="${move}"]`
@@ -102,16 +132,23 @@
                 });
             });
 
+            socket.on("visitors", (count) => {
+                document.querySelector(".visitors").textContent = count;
+            });
+
             socket.on("users", (users) => {
                 document.querySelector(".users").textContent = users;
 
-                if (users < 2) {
+                if (users < 2 && !visitor) {
                     document.querySelector(".info").textContent =
                         "Waiting for your opponent";
                     disableBtns(true);
                 } else {
-                    document.querySelector(".info").textContent = "";
                     disableBtns(false);
+                }
+
+                if (users === 2 && !visitor) {
+                    document.querySelector(".info").textContent = "";
                 }
             });
 
@@ -129,6 +166,7 @@
                     socket.id === id ? "YOU WON!" : "YOU LOSE!";
 
                 end = true;
+                document.querySelector(".retry").style.display = "block";
             });
 
             socket.on("wonPath", (numbers) => {
@@ -183,9 +221,14 @@
                                 "none";
                             document.querySelector(".info").textContent =
                                 "YOU CAN ONLY WATCH(OBSERVER)";
+                            visitor = true;
                             target.remove();
                         }
                     });
+                }
+                if (className.includes("retry")) {
+                    socket.emit("retry");
+                    clearBtns();
                 }
             });
         </script>
