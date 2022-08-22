@@ -1,0 +1,184 @@
+<html>
+    <head>
+        <title>tictactoe</title>
+        <script src="/socket.io/socket.io.js"></script>
+        <style>
+            * {
+                padding: 0;
+                margin: 0;
+                box-sizing: border-box;
+            }
+            .field {
+                padding: 50px;
+                background-color: lightgray;
+                width: 410px;
+            }
+            .row {
+                border-bottom: 1px solid gray;
+            }
+            .row:last-of-type {
+                border-bottom: none;
+            }
+            .btn {
+                border: none;
+                border-left: 1px solid gray;
+                width: 100px;
+                height: 100px;
+                outline: none;
+                background-color: transparent;
+                padding: 0;
+                margin: 0;
+                color: transparent;
+            }
+            .btn.active {
+                color: black;
+            }
+            .btn:first-of-type {
+                border-left: none;
+            }
+            .room {
+                display: none;
+            }
+            .play {
+                background-color: lightcyan;
+                font-family: Calibri, sans-serif;
+                margin: 50px;
+                font-size: 50px;
+            }
+            .info {
+                color: red;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="app">
+            <button class="play">PLAY</button>
+            <div class="room">
+                <h1>User: <span class="userId"></span></h1>
+                <div>Count of players: <span class="users"></span></div>
+                <h2 class="turn"></h2>
+                <h2 class="info"></h2>
+
+                <div class="field">
+                    <div class="row">
+                        <button class="btn" data-id="0">.</button>
+                        <button class="btn" data-id="1">.</button>
+                        <button class="btn" data-id="2">.</button>
+                    </div>
+                    <div class="row">
+                        <button class="btn" data-id="3">.</button>
+                        <button class="btn" data-id="4">.</button>
+                        <button class="btn" data-id="5">.</button>
+                    </div>
+                    <div class="row">
+                        <button class="btn" data-id="6">.</button>
+                        <button class="btn" data-id="7">.</button>
+                        <button class="btn" data-id="8">.</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            const socket = io();
+
+            let end = false;
+
+            const disableBtns = (flag) => {
+                document.querySelectorAll(".btn")?.forEach((node) => {
+                    node.disabled = flag;
+                });
+            };
+
+            socket.on("moves", (moves) => {
+                console.log(moves);
+                moves.forEach(({ user: { id }, move }) => {
+                    const btn = document.querySelector(
+                        `.btn[data-id="${move}"]`
+                    );
+                    if (btn) {
+                        btn.classList.add("active");
+                        btn.textContent = id === socket.id ? "O" : "X";
+                    }
+                });
+            });
+
+            socket.on("users", (users) => {
+                document.querySelector(".users").textContent = users;
+            });
+
+            socket.on("disconnect", () => {
+                document.body.textContent = "DISCONNECTED";
+            });
+
+            socket.on("connect", () => {
+                document.querySelector(".userId").textContent = socket.id;
+            });
+
+            socket.on("won", (id) => {
+                console.log("won :: ", id);
+                document.querySelector(".info").textContent =
+                    socket.id === id ? "YOU WON!" : "YOU LOSE!";
+
+                end = true;
+            });
+
+            socket.on("wonPath", (numbers) => {
+                numbers.split("").forEach((number) => {
+                    const btn = document.querySelector(
+                        `.btn[data-id="${number}"]`
+                    );
+                    btn.style.backgroundColor = "green";
+                });
+
+                disableBtns(true);
+            });
+
+            socket.on("turn", (turn) => {
+                if (end) return;
+
+                const disabled = turn !== socket.id;
+
+                document.querySelector(".turn").textContent = !disabled
+                    ? "Your turn"
+                    : "His turn";
+
+                disableBtns(disabled);
+            });
+
+            window.onbeforeunload = function () {
+                socket.disconnect();
+            };
+
+            document.body.addEventListener("click", ({ target }) => {
+                const {
+                    dataset: { id },
+                    className,
+                } = target;
+
+                if (!end && className.includes("btn")) {
+                    socket.emit("move", {
+                        user: { id: socket.id },
+                        move: id,
+                    });
+                }
+                if (className.includes("play")) {
+                    socket.emit("play", socket.id, (res) => {
+                        if (res) {
+                            document.querySelector(".room").style.display =
+                                "block";
+                            target.remove();
+                        } else {
+                            document.querySelector(".room").style.display =
+                                "block";
+                            document.querySelector(".turn").style.display =
+                                "none";
+                            document.querySelector(".info").textContent =
+                                "YOU CAN ONLY WATCH(OBSERVER)";
+                            target.remove();
+                        }
+                    });
+                }
+            });
+        </script>
+    </body>
+</html>
