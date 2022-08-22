@@ -74,4 +74,4 @@ io.on("connection", (client) => {
     });
 });
 
-server.listen();
+server.listen(process.env.PORT || 3000);
